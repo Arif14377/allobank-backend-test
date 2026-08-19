@@ -33,7 +33,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 		"spring.datasource.username=sa",
 		"spring.datasource.password=",
 		"spring.flyway.enabled=false",
-		"spring.jpa.hibernate.ddl-auto=create-drop"
+		"spring.jpa.hibernate.ddl-auto=create-drop",
+		"app.security.jwt.secret=test-only-32-byte-minimum-secret"
 })
 class BillServiceTransactionTest {
 
