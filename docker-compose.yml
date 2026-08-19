@@ -3,11 +3,11 @@ services:
     image: postgres:18-alpine
     container_name: split-bill-postgres
     environment:
-      POSTGRES_DB: ${DB_NAME:-split_bill}
-      POSTGRES_USER: ${DB_USERNAME:-split_bill}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-split_bill}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

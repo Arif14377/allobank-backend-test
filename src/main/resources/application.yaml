@@ -1,10 +1,12 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: backend-test-allobank
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/split_bill}
-    username: ${DB_USERNAME:split_bill}
-    password: ${DB_PASSWORD:split_bill}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -17,7 +19,7 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT}
 
 app:
   security:
