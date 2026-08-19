@@ -46,6 +46,42 @@ class BillPersistenceTest {
 	private BillDebtorRepository billDebtorRepository;
 
 	@Test
+	void findsBillsByGroupOrderedByNewestFirst() throws InterruptedException {
+		UserEntity creator = userRepository.save(new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com"));
+		UserEntity member = userRepository.save(new UserEntity(MEMBER_ID, "Budi Santoso", "budi@example.com"));
+		BillGroupEntity group = billGroupRepository.save(BillGroupEntity.create("Trip Bandung", creator));
+		BillGroupEntity otherGroup = billGroupRepository.save(BillGroupEntity.create("Office", creator));
+		billGroupMemberRepository.saveAll(List.of(
+				BillGroupMemberEntity.create(group, creator),
+				BillGroupMemberEntity.create(group, member),
+				BillGroupMemberEntity.create(otherGroup, creator)));
+
+		BillEntity olderBill = billRepository.save(BillEntity.create(
+				group,
+				creator,
+				new BigDecimal("100000.00"),
+				"Breakfast"));
+		Thread.sleep(5);
+		BillEntity newerBill = billRepository.save(BillEntity.create(
+				group,
+				member,
+				new BigDecimal("300000.00"),
+				"Lunch"));
+		billRepository.save(BillEntity.create(
+				otherGroup,
+				creator,
+				new BigDecimal("50000.00"),
+				"Office snacks"));
+
+		List<BillEntity> bills = billRepository.findBillsByGroupId(group.getId());
+
+		assertThat(bills)
+				.extracting(BillEntity::getId)
+				.containsExactly(newerBill.getId(), olderBill.getId());
+		assertThat(bills.get(0).getPayer().getFullName()).isEqualTo("Budi Santoso");
+	}
+
+	@Test
 	void persistsBillAndDebtorRows() {
 		UserEntity creator = userRepository.save(new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com"));
 		UserEntity member = userRepository.save(new UserEntity(MEMBER_ID, "Budi Santoso", "budi@example.com"));

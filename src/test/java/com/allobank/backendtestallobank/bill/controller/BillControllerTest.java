@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,13 +19,16 @@ import java.util.List;
 import java.util.UUID;
 
 import com.allobank.backendtestallobank.bill.dto.BillDebtorResponse;
+import com.allobank.backendtestallobank.bill.dto.BillListResponse;
 import com.allobank.backendtestallobank.bill.dto.BillResponse;
+import com.allobank.backendtestallobank.bill.dto.BillSummaryResponse;
 import com.allobank.backendtestallobank.bill.dto.CreateBillRequest;
 import com.allobank.backendtestallobank.bill.service.BillService;
 import com.allobank.backendtestallobank.billgroup.controller.BillGroupController;
 import com.allobank.backendtestallobank.billgroup.dto.SimpleUserResponse;
 import com.allobank.backendtestallobank.billgroup.service.BillGroupService;
 import com.allobank.backendtestallobank.common.error.GlobalExceptionHandler;
+import com.allobank.backendtestallobank.common.error.ResourceNotFoundException;
 import com.allobank.backendtestallobank.config.security.SecurityConfig;
 
 import org.junit.jupiter.api.Test;
@@ -60,6 +64,71 @@ class BillControllerTest {
 
 	@MockitoBean
 	private JwtDecoder jwtDecoder;
+
+	@Test
+	void listBillsReturnsOkResponseContract() throws Exception {
+		BillListResponse response = new BillListResponse(
+				List.of(new BillSummaryResponse(
+						BILL_ID,
+						new SimpleUserResponse(CREATOR_ID, "Arif Rahman"),
+						new BigDecimal("300000.00"),
+						"Lunch",
+						Instant.parse("2026-08-17T15:00:00Z"))),
+				1);
+		when(billService.listForGroup(CREATOR_ID, GROUP_ID)).thenReturn(response);
+
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}/bills", GROUP_ID)
+					.with(jwt().jwt(jwt -> jwt.subject(CREATOR_ID.toString())))
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data", hasSize(1)))
+				.andExpect(jsonPath("$.data[0].id").value(BILL_ID.toString()))
+				.andExpect(jsonPath("$.data[0].payer.id").value(CREATOR_ID.toString()))
+				.andExpect(jsonPath("$.data[0].payer.fullName").value("Arif Rahman"))
+				.andExpect(jsonPath("$.data[0].amount").value(300000.00))
+				.andExpect(jsonPath("$.data[0].description").value("Lunch"))
+				.andExpect(jsonPath("$.data[0].createdAt").value("2026-08-17T15:00:00Z"))
+				.andExpect(jsonPath("$.total").value(1));
+
+		verify(billService).listForGroup(CREATOR_ID, GROUP_ID);
+	}
+
+	@Test
+	void listBillsReturnsEmptyResult() throws Exception {
+		when(billService.listForGroup(CREATOR_ID, GROUP_ID)).thenReturn(new BillListResponse(List.of(), 0));
+
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}/bills", GROUP_ID)
+					.with(jwt().jwt(jwt -> jwt.subject(CREATOR_ID.toString())))
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data", hasSize(0)))
+				.andExpect(jsonPath("$.total").value(0));
+
+		verify(billService).listForGroup(CREATOR_ID, GROUP_ID);
+	}
+
+	@Test
+	void listBillsHidesGroupFromNonMember() throws Exception {
+		when(billService.listForGroup(MEMBER_ID, GROUP_ID))
+				.thenThrow(new ResourceNotFoundException("Bill group was not found"));
+
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}/bills", GROUP_ID)
+					.with(jwt().jwt(jwt -> jwt.subject(MEMBER_ID.toString())))
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Bill group was not found"));
+
+		verify(billService).listForGroup(MEMBER_ID, GROUP_ID);
+	}
+
+	@Test
+	void listBillsRequiresAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}/bills", GROUP_ID)
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(billService);
+	}
 
 	@Test
 	void createBillReturnsCreatedResponseContract() throws Exception {

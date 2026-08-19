@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.allobank.backendtestallobank.bill.dto.BillDebtorRequest;
+import com.allobank.backendtestallobank.bill.dto.BillListResponse;
 import com.allobank.backendtestallobank.bill.dto.BillResponse;
 import com.allobank.backendtestallobank.bill.dto.CreateBillRequest;
 import com.allobank.backendtestallobank.bill.entity.BillDebtorEntity;
@@ -58,6 +59,72 @@ class BillServiceTest {
 
 	@InjectMocks
 	private BillService billService;
+
+	@Test
+	void listForGroupReturnsBillsForMember() {
+		UserEntity creator = new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com");
+		UserEntity member = new UserEntity(MEMBER_ID, "Budi Santoso", "budi@example.com");
+		BillGroupEntity group = BillGroupEntity.create("Trip Bandung", creator);
+		BillEntity bill = BillEntity.create(group, creator, new BigDecimal("300000.00"), "Lunch");
+
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.of(group));
+		when(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(GROUP_ID, MEMBER_ID))
+				.thenReturn(true);
+		when(billRepository.findBillsByGroupId(GROUP_ID)).thenReturn(List.of(bill));
+
+		BillListResponse response = billService.listForGroup(MEMBER_ID, GROUP_ID);
+
+		assertThat(response.total()).isEqualTo(1);
+		assertThat(response.data()).hasSize(1);
+		assertThat(response.data().get(0).payer().id()).isEqualTo(CREATOR_ID);
+		assertThat(response.data().get(0).payer().fullName()).isEqualTo("Arif Rahman");
+		assertThat(response.data().get(0).amount()).isEqualByComparingTo("300000.00");
+		assertThat(response.data().get(0).description()).isEqualTo("Lunch");
+	}
+
+	@Test
+	void listForGroupReturnsEmptyResultForMember() {
+		UserEntity creator = new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com");
+		BillGroupEntity group = BillGroupEntity.create("Trip Bandung", creator);
+
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.of(group));
+		when(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(GROUP_ID, CREATOR_ID))
+				.thenReturn(true);
+		when(billRepository.findBillsByGroupId(GROUP_ID)).thenReturn(List.of());
+
+		BillListResponse response = billService.listForGroup(CREATOR_ID, GROUP_ID);
+
+		assertThat(response.total()).isZero();
+		assertThat(response.data()).isEmpty();
+	}
+
+	@Test
+	void listForGroupRejectsNonMemberAsNotFound() {
+		UserEntity creator = new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com");
+		BillGroupEntity group = BillGroupEntity.create("Trip Bandung", creator);
+
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.of(group));
+		when(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(GROUP_ID, OTHER_USER_ID))
+				.thenReturn(false);
+
+		assertThatThrownBy(() -> billService.listForGroup(OTHER_USER_ID, GROUP_ID))
+				.isInstanceOf(ResourceNotFoundException.class)
+				.hasMessage("Bill group was not found");
+
+		verify(billRepository, never()).findBillsByGroupId(GROUP_ID);
+	}
+
+	@Test
+	void listForGroupRejectsMissingGroup() {
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> billService.listForGroup(CREATOR_ID, GROUP_ID))
+				.isInstanceOf(ResourceNotFoundException.class)
+				.hasMessage("Bill group was not found");
+
+		verifyNoMoreInteractions(billGroupMemberRepository);
+		verify(billRepository, never()).findBillsByGroupId(GROUP_ID);
+	}
 
 	@Test
 	void createPersistsBillAndDebtorsWhenAllocationMatchesAmount() {
