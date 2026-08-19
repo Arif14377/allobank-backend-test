@@ -11,7 +11,9 @@ import java.util.stream.Collectors;
 
 import com.allobank.backendtestallobank.bill.dto.BillDebtorRequest;
 import com.allobank.backendtestallobank.bill.dto.BillDebtorResponse;
+import com.allobank.backendtestallobank.bill.dto.BillListResponse;
 import com.allobank.backendtestallobank.bill.dto.BillResponse;
+import com.allobank.backendtestallobank.bill.dto.BillSummaryResponse;
 import com.allobank.backendtestallobank.bill.dto.CreateBillRequest;
 import com.allobank.backendtestallobank.bill.entity.BillDebtorEntity;
 import com.allobank.backendtestallobank.bill.entity.BillEntity;
@@ -83,6 +85,23 @@ public class BillService {
 		return toResponse(bill, debtors);
 	}
 
+	@Transactional(readOnly = true)
+	public BillListResponse listForGroup(UUID authenticatedUserId, UUID groupId) {
+		billGroupRepository.findByIdAndDeletedAtIsNull(groupId)
+				.orElseThrow(() -> new ResourceNotFoundException("Bill group was not found"));
+
+		if (!billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(groupId, authenticatedUserId)) {
+			throw new ResourceNotFoundException("Bill group was not found");
+		}
+
+		List<BillSummaryResponse> bills = billRepository.findBillsByGroupId(groupId)
+				.stream()
+				.map(this::toSummaryResponse)
+				.toList();
+
+		return new BillListResponse(bills, bills.size());
+	}
+
 	private void validateDebtors(CreateBillRequest request, Set<UUID> memberIds) {
 		Set<UUID> seenDebtorIds = new HashSet<>();
 		BigDecimal allocatedAmount = BigDecimal.ZERO;
@@ -116,6 +135,15 @@ public class BillService {
 				bill.getAmount(),
 				bill.getDescription(),
 				debtorResponses,
+				bill.getCreatedAt());
+	}
+
+	private BillSummaryResponse toSummaryResponse(BillEntity bill) {
+		return new BillSummaryResponse(
+				bill.getId(),
+				new SimpleUserResponse(bill.getPayer().getId(), bill.getPayer().getFullName()),
+				bill.getAmount(),
+				bill.getDescription(),
 				bill.getCreatedAt());
 	}
 }

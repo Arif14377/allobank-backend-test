@@ -3,6 +3,7 @@ package com.allobank.backendtestallobank.billgroup.controller;
 import java.net.URI;
 import java.util.UUID;
 
+import com.allobank.backendtestallobank.bill.dto.BillListResponse;
 import com.allobank.backendtestallobank.bill.dto.BillResponse;
 import com.allobank.backendtestallobank.bill.dto.CreateBillRequest;
 import com.allobank.backendtestallobank.bill.service.BillService;
@@ -71,6 +72,14 @@ public class BillGroupController {
 		return ResponseEntity
 				.created(URI.create("/api/v1/bill-groups/" + groupId + "/bills/" + response.id()))
 				.body(response);
+	}
+
+	@GetMapping("/{groupId}/bills")
+	ResponseEntity<BillListResponse> listBills(
+			@AuthenticationPrincipal Jwt jwt,
+			@PathVariable UUID groupId) {
+		UUID authenticatedUserId = authenticatedUserId(jwt);
+		return ResponseEntity.ok(billService.listForGroup(authenticatedUserId, groupId));
 	}
 
 	private UUID authenticatedUserId(Jwt jwt) {
