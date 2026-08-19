@@ -82,6 +82,41 @@ class BillPersistenceTest {
 	}
 
 	@Test
+	void findsDebtorsByGroupForSettlementCalculation() {
+		UserEntity creator = userRepository.save(new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com"));
+		UserEntity member = userRepository.save(new UserEntity(MEMBER_ID, "Budi Santoso", "budi@example.com"));
+		BillGroupEntity group = billGroupRepository.save(BillGroupEntity.create("Trip Bandung", creator));
+		BillGroupEntity otherGroup = billGroupRepository.save(BillGroupEntity.create("Office", creator));
+		billGroupMemberRepository.saveAll(List.of(
+				BillGroupMemberEntity.create(group, creator),
+				BillGroupMemberEntity.create(group, member),
+				BillGroupMemberEntity.create(otherGroup, creator)));
+		BillEntity bill = billRepository.save(BillEntity.create(
+				group,
+				creator,
+				new BigDecimal("300000.00"),
+				"Lunch"));
+		BillEntity otherBill = billRepository.save(BillEntity.create(
+				otherGroup,
+				creator,
+				new BigDecimal("50000.00"),
+				"Office snacks"));
+		billDebtorRepository.saveAll(List.of(
+				BillDebtorEntity.create(bill, creator, new BigDecimal("100000.00")),
+				BillDebtorEntity.create(bill, member, new BigDecimal("200000.00")),
+				BillDebtorEntity.create(otherBill, creator, new BigDecimal("50000.00"))));
+
+		List<BillDebtorEntity> debtors = billDebtorRepository.findDebtorsByGroupId(group.getId());
+
+		assertThat(debtors)
+				.extracting(debtor -> debtor.getDebtor().getId())
+				.containsExactlyInAnyOrder(CREATOR_ID, MEMBER_ID);
+		assertThat(debtors)
+				.extracting(debtor -> debtor.getBill().getId())
+				.containsOnly(bill.getId());
+	}
+
+	@Test
 	void persistsBillAndDebtorRows() {
 		UserEntity creator = userRepository.save(new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com"));
 		UserEntity member = userRepository.save(new UserEntity(MEMBER_ID, "Budi Santoso", "budi@example.com"));

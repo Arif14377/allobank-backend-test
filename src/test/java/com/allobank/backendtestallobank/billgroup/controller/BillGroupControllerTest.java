@@ -28,6 +28,7 @@ import com.allobank.backendtestallobank.billgroup.dto.SimpleUserResponse;
 import com.allobank.backendtestallobank.common.error.GlobalExceptionHandler;
 import com.allobank.backendtestallobank.common.error.ResourceNotFoundException;
 import com.allobank.backendtestallobank.config.security.SecurityConfig;
+import com.allobank.backendtestallobank.settlement.service.SettlementService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,6 +62,9 @@ class BillGroupControllerTest {
 
 	@MockitoBean
 	private JwtDecoder jwtDecoder;
+
+	@MockitoBean
+	private SettlementService settlementService;
 
 	@Test
 	void createReturnsCreatedResponseContract() throws Exception {

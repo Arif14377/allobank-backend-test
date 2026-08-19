@@ -12,6 +12,8 @@ import com.allobank.backendtestallobank.billgroup.dto.BillGroupListResponse;
 import com.allobank.backendtestallobank.billgroup.dto.BillGroupResponse;
 import com.allobank.backendtestallobank.billgroup.dto.CreateBillGroupRequest;
 import com.allobank.backendtestallobank.common.error.BadRequestException;
+import com.allobank.backendtestallobank.settlement.dto.SettlementResponse;
+import com.allobank.backendtestallobank.settlement.service.SettlementService;
 
 import jakarta.validation.Valid;
 
@@ -31,10 +33,15 @@ public class BillGroupController {
 
 	private final BillGroupService billGroupService;
 	private final BillService billService;
+	private final SettlementService settlementService;
 
-	public BillGroupController(BillGroupService billGroupService, BillService billService) {
+	public BillGroupController(
+			BillGroupService billGroupService,
+			BillService billService,
+			SettlementService settlementService) {
 		this.billGroupService = billGroupService;
 		this.billService = billService;
+		this.settlementService = settlementService;
 	}
 
 	@PostMapping
@@ -80,6 +87,14 @@ public class BillGroupController {
 			@PathVariable UUID groupId) {
 		UUID authenticatedUserId = authenticatedUserId(jwt);
 		return ResponseEntity.ok(billService.listForGroup(authenticatedUserId, groupId));
+	}
+
+	@GetMapping("/{groupId}/settlement")
+	ResponseEntity<SettlementResponse> settlement(
+			@AuthenticationPrincipal Jwt jwt,
+			@PathVariable UUID groupId) {
+		UUID authenticatedUserId = authenticatedUserId(jwt);
+		return ResponseEntity.ok(settlementService.getSettlement(authenticatedUserId, groupId));
 	}
 
 	private UUID authenticatedUserId(Jwt jwt) {
