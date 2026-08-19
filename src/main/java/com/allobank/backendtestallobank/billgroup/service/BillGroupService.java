@@ -81,6 +81,23 @@ public class BillGroupService {
 		return new BillGroupListResponse(groups, groups.size());
 	}
 
+	@Transactional(readOnly = true)
+	public BillGroupResponse getDetail(UUID authenticatedUserId, UUID groupId) {
+		BillGroupEntity group = billGroupRepository.findByIdAndDeletedAtIsNull(groupId)
+				.orElseThrow(() -> new ResourceNotFoundException("Bill group was not found"));
+
+		if (!billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(groupId, authenticatedUserId)) {
+			throw new ResourceNotFoundException("Bill group was not found");
+		}
+
+		List<UserEntity> members = billGroupMemberRepository.findActiveMembersByGroupId(groupId)
+				.stream()
+				.map(BillGroupMemberEntity::getUser)
+				.toList();
+
+		return toResponse(group, members);
+	}
+
 	private List<UUID> buildOrderedMemberIds(UUID authenticatedUserId, List<UUID> requestMemberIds) {
 		Set<UUID> uniqueIds = new LinkedHashSet<>();
 		uniqueIds.add(authenticatedUserId);

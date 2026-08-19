@@ -25,6 +25,7 @@ import com.allobank.backendtestallobank.billgroup.dto.CreateBillGroupRequest;
 import com.allobank.backendtestallobank.billgroup.dto.MemberResponse;
 import com.allobank.backendtestallobank.billgroup.dto.SimpleUserResponse;
 import com.allobank.backendtestallobank.common.error.GlobalExceptionHandler;
+import com.allobank.backendtestallobank.common.error.ResourceNotFoundException;
 import com.allobank.backendtestallobank.config.security.SecurityConfig;
 
 import org.junit.jupiter.api.Test;
@@ -122,6 +123,54 @@ class BillGroupControllerTest {
 	@Test
 	void listRequiresAuthentication() throws Exception {
 		mockMvc.perform(get("/api/v1/bill-groups")
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(billGroupService);
+	}
+
+	@Test
+	void detailReturnsGroupForAuthenticatedMember() throws Exception {
+		BillGroupResponse response = new BillGroupResponse(
+				GROUP_ID,
+				"Trip Bandung",
+				new SimpleUserResponse(CREATOR_ID, "Arif Rahman"),
+				List.of(
+						new MemberResponse(CREATOR_ID, "Arif Rahman", "arif@example.com"),
+						new MemberResponse(MEMBER_ID, "Budi Santoso", "budi@example.com")),
+				Instant.parse("2026-08-16T10:00:00Z"));
+		when(billGroupService.getDetail(CREATOR_ID, GROUP_ID)).thenReturn(response);
+
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}", GROUP_ID)
+					.with(jwt().jwt(jwt -> jwt.subject(CREATOR_ID.toString())))
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(GROUP_ID.toString()))
+				.andExpect(jsonPath("$.name").value("Trip Bandung"))
+				.andExpect(jsonPath("$.createdBy.id").value(CREATOR_ID.toString()))
+				.andExpect(jsonPath("$.members", hasSize(2)))
+				.andExpect(jsonPath("$.members[0].userId").value(CREATOR_ID.toString()))
+				.andExpect(jsonPath("$.members[0].email").value("arif@example.com"))
+				.andExpect(jsonPath("$.createdAt").value("2026-08-16T10:00:00Z"));
+
+		verify(billGroupService).getDetail(CREATOR_ID, GROUP_ID);
+	}
+
+	@Test
+	void detailReturnsNotFoundForMissingOrInaccessibleGroup() throws Exception {
+		when(billGroupService.getDetail(CREATOR_ID, GROUP_ID))
+				.thenThrow(new ResourceNotFoundException("Bill group was not found"));
+
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}", GROUP_ID)
+					.with(jwt().jwt(jwt -> jwt.subject(CREATOR_ID.toString())))
+					.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.message").value("Bill group was not found"));
+	}
+
+	@Test
+	void detailRequiresAuthentication() throws Exception {
+		mockMvc.perform(get("/api/v1/bill-groups/{groupId}", GROUP_ID)
 					.accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isUnauthorized());
 

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +36,7 @@ class BillGroupServiceTest {
 
 	private static final UUID CREATOR_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 	private static final UUID MEMBER_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+	private static final UUID GROUP_ID = UUID.fromString("00000000-0000-0000-0000-000000000010");
 
 	@Mock
 	private BillGroupRepository billGroupRepository;
@@ -97,6 +99,58 @@ class BillGroupServiceTest {
 
 		verify(billGroupRepository).findActiveGroupsByMemberUserId(MEMBER_ID);
 		verify(billGroupMemberRepository).countByGroup_IdAndDeletedAtIsNull(group.getId());
+	}
+
+	@Test
+	void getDetailReturnsGroupWhenAuthenticatedUserIsMember() {
+		UserEntity creator = new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com");
+		UserEntity member = new UserEntity(MEMBER_ID, "Budi Santoso", "budi@example.com");
+		BillGroupEntity group = BillGroupEntity.create("Trip Bandung", creator);
+		BillGroupMemberEntity creatorMembership = BillGroupMemberEntity.create(group, creator);
+		BillGroupMemberEntity memberMembership = BillGroupMemberEntity.create(group, member);
+
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.of(group));
+		when(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(GROUP_ID, MEMBER_ID))
+				.thenReturn(true);
+		when(billGroupMemberRepository.findActiveMembersByGroupId(GROUP_ID))
+				.thenReturn(List.of(creatorMembership, memberMembership));
+
+		BillGroupResponse response = billGroupService.getDetail(MEMBER_ID, GROUP_ID);
+
+		assertThat(response.id()).isEqualTo(group.getId());
+		assertThat(response.name()).isEqualTo("Trip Bandung");
+		assertThat(response.createdBy().id()).isEqualTo(CREATOR_ID);
+		assertThat(response.members())
+				.extracting(memberResponse -> memberResponse.userId())
+				.containsExactly(CREATOR_ID, MEMBER_ID);
+	}
+
+	@Test
+	void getDetailRejectsMissingGroup() {
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> billGroupService.getDetail(MEMBER_ID, GROUP_ID))
+				.isInstanceOf(ResourceNotFoundException.class)
+				.hasMessage("Bill group was not found");
+
+		verify(billGroupRepository).findByIdAndDeletedAtIsNull(GROUP_ID);
+		verifyNoMoreInteractions(billGroupMemberRepository);
+	}
+
+	@Test
+	void getDetailRejectsNonMemberAccess() {
+		UserEntity creator = new UserEntity(CREATOR_ID, "Arif Rahman", "arif@example.com");
+		BillGroupEntity group = BillGroupEntity.create("Trip Bandung", creator);
+
+		when(billGroupRepository.findByIdAndDeletedAtIsNull(GROUP_ID)).thenReturn(Optional.of(group));
+		when(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(GROUP_ID, MEMBER_ID))
+				.thenReturn(false);
+
+		assertThatThrownBy(() -> billGroupService.getDetail(MEMBER_ID, GROUP_ID))
+				.isInstanceOf(ResourceNotFoundException.class)
+				.hasMessage("Bill group was not found");
+
+		verify(billGroupMemberRepository, never()).findActiveMembersByGroupId(GROUP_ID);
 	}
 
 	@Test

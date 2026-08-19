@@ -1,6 +1,7 @@
 package com.allobank.backendtestallobank.billgroup.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.allobank.backendtestallobank.billgroup.entity.BillGroupEntity;
@@ -22,4 +23,5 @@ public interface BillGroupRepository extends JpaRepository<BillGroupEntity, UUID
 			order by g.createdAt desc
 			""")
 	List<BillGroupEntity> findActiveGroupsByMemberUserId(@Param("userId") UUID userId);
+	Optional<BillGroupEntity> findByIdAndDeletedAtIsNull(UUID id);
 }

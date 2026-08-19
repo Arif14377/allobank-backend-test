@@ -59,6 +59,13 @@ class BillGroupPersistenceTest {
 		assertThat(billGroupRepository.findActiveGroupsByMemberUserId(MEMBER_ID))
 				.extracting(BillGroupEntity::getId)
 				.containsExactly(group.getId());
+		assertThat(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(group.getId(), MEMBER_ID))
+				.isTrue();
+		assertThat(billGroupMemberRepository.existsByGroup_IdAndUser_IdAndDeletedAtIsNull(group.getId(), OTHER_USER_ID))
+				.isFalse();
+		assertThat(billGroupMemberRepository.findActiveMembersByGroupId(group.getId()))
+				.extracting(memberEntity -> memberEntity.getUser().getId())
+				.containsExactly(CREATOR_ID, MEMBER_ID);
 		assertThat(billGroupMemberRepository.countByGroup_IdAndDeletedAtIsNull(group.getId())).isEqualTo(2);
 	}
 }
