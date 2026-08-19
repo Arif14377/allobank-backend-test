@@ -14,6 +14,28 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+	@ExceptionHandler(ResourceNotFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException exception, HttpServletRequest request) {
+		ApiErrorResponse response = ApiErrorResponse.of(
+				HttpStatus.NOT_FOUND.value(),
+				HttpStatus.NOT_FOUND.getReasonPhrase(),
+				exception.getMessage(),
+				request.getRequestURI());
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+	}
+
+	@ExceptionHandler(BadRequestException.class)
+	ResponseEntity<ApiErrorResponse> handleBadRequest(BadRequestException exception, HttpServletRequest request) {
+		ApiErrorResponse response = ApiErrorResponse.of(
+				HttpStatus.BAD_REQUEST.value(),
+				HttpStatus.BAD_REQUEST.getReasonPhrase(),
+				exception.getMessage(),
+				request.getRequestURI());
+
+		return ResponseEntity.badRequest().body(response);
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	ResponseEntity<ApiErrorResponse> handleValidation(
 			MethodArgumentNotValidException exception,
