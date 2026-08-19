@@ -3,6 +3,9 @@ package com.allobank.backendtestallobank.billgroup.controller;
 import java.net.URI;
 import java.util.UUID;
 
+import com.allobank.backendtestallobank.bill.dto.BillResponse;
+import com.allobank.backendtestallobank.bill.dto.CreateBillRequest;
+import com.allobank.backendtestallobank.bill.service.BillService;
 import com.allobank.backendtestallobank.billgroup.service.BillGroupService;
 import com.allobank.backendtestallobank.billgroup.dto.BillGroupListResponse;
 import com.allobank.backendtestallobank.billgroup.dto.BillGroupResponse;
@@ -26,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class BillGroupController {
 
 	private final BillGroupService billGroupService;
+	private final BillService billService;
 
-	public BillGroupController(BillGroupService billGroupService) {
+	public BillGroupController(BillGroupService billGroupService, BillService billService) {
 		this.billGroupService = billGroupService;
+		this.billService = billService;
 	}
 
 	@PostMapping
@@ -54,6 +59,18 @@ public class BillGroupController {
 			@PathVariable UUID groupId) {
 		UUID authenticatedUserId = authenticatedUserId(jwt);
 		return ResponseEntity.ok(billGroupService.getDetail(authenticatedUserId, groupId));
+	}
+
+	@PostMapping("/{groupId}/bills")
+	ResponseEntity<BillResponse> createBill(
+			@AuthenticationPrincipal Jwt jwt,
+			@PathVariable UUID groupId,
+			@Valid @RequestBody CreateBillRequest request) {
+		UUID authenticatedUserId = authenticatedUserId(jwt);
+		BillResponse response = billService.create(authenticatedUserId, groupId, request);
+		return ResponseEntity
+				.created(URI.create("/api/v1/bill-groups/" + groupId + "/bills/" + response.id()))
+				.body(response);
 	}
 
 	private UUID authenticatedUserId(Jwt jwt) {

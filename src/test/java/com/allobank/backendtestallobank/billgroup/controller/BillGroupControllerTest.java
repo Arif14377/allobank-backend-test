@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.allobank.backendtestallobank.bill.service.BillService;
 import com.allobank.backendtestallobank.billgroup.service.BillGroupService;
 import com.allobank.backendtestallobank.billgroup.dto.BillGroupListResponse;
 import com.allobank.backendtestallobank.billgroup.dto.BillGroupResponse;
@@ -54,6 +55,9 @@ class BillGroupControllerTest {
 
 	@MockitoBean
 	private BillGroupService billGroupService;
+
+	@MockitoBean
+	private BillService billService;
 
 	@MockitoBean
 	private JwtDecoder jwtDecoder;
