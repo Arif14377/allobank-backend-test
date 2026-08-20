@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     full_name VARCHAR NOT NULL,
     email VARCHAR UNIQUE NOT NULL,
@@ -6,7 +6,7 @@ CREATE TABLE users (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE bill_groups (
+CREATE TABLE IF NOT EXISTS bill_groups (
     id UUID PRIMARY KEY,
     name VARCHAR NOT NULL,
     created_by UUID NOT NULL REFERENCES users(id),
@@ -15,7 +15,7 @@ CREATE TABLE bill_groups (
     deleted_at TIMESTAMPTZ
 );
 
-CREATE TABLE bill_group_members (
+CREATE TABLE IF NOT EXISTS bill_group_members (
     id UUID PRIMARY KEY,
     group_id UUID NOT NULL REFERENCES bill_groups(id),
     user_id UUID NOT NULL REFERENCES users(id),
@@ -24,7 +24,7 @@ CREATE TABLE bill_group_members (
     CONSTRAINT uk_bill_group_members_group_user UNIQUE (group_id, user_id)
 );
 
-CREATE TABLE bills (
+CREATE TABLE IF NOT EXISTS bills (
     id UUID PRIMARY KEY,
     group_id UUID NOT NULL REFERENCES bill_groups(id),
     payer_id UUID NOT NULL REFERENCES users(id),
@@ -33,7 +33,7 @@ CREATE TABLE bills (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE bill_debtors (
+CREATE TABLE IF NOT EXISTS bill_debtors (
     id UUID PRIMARY KEY,
     bill_id UUID NOT NULL REFERENCES bills(id),
     debtor_id UUID NOT NULL REFERENCES users(id),
@@ -43,9 +43,9 @@ CREATE TABLE bill_debtors (
     CONSTRAINT uk_bill_debtors_bill_debtor UNIQUE (bill_id, debtor_id)
 );
 
-CREATE INDEX idx_bill_groups_created_by ON bill_groups(created_by);
-CREATE INDEX idx_bill_group_members_user_id ON bill_group_members(user_id);
-CREATE INDEX idx_bills_group_id ON bills(group_id);
-CREATE INDEX idx_bills_payer_id ON bills(payer_id);
-CREATE INDEX idx_bill_debtors_bill_id ON bill_debtors(bill_id);
-CREATE INDEX idx_bill_debtors_debtor_id ON bill_debtors(debtor_id);
+CREATE INDEX IF NOT EXISTS idx_bill_groups_created_by ON bill_groups(created_by);
+CREATE INDEX IF NOT EXISTS idx_bill_group_members_user_id ON bill_group_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_bills_group_id ON bills(group_id);
+CREATE INDEX IF NOT EXISTS idx_bills_payer_id ON bills(payer_id);
+CREATE INDEX IF NOT EXISTS idx_bill_debtors_bill_id ON bill_debtors(bill_id);
+CREATE INDEX IF NOT EXISTS idx_bill_debtors_debtor_id ON bill_debtors(debtor_id);
