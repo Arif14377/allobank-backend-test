@@ -1,15 +1,36 @@
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: split-bill-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-split_bill}
+      DB_USERNAME: ${DB_USERNAME:-split_bill}
+      DB_PASSWORD: ${DB_PASSWORD:-split_bill}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-strong-32-byte-minimum-secret}
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    networks:
+      - split-bill-network
+
   postgres:
-    image: postgres:18-alpine
+    image: postgres:17-alpine
     container_name: split-bill-postgres
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-split_bill}
+      POSTGRES_USER: ${DB_USERNAME:-split_bill}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-split_bill}
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - split-bill-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -18,3 +39,7 @@ services:
 
 volumes:
   postgres-data:
+
+networks:
+  split-bill-network:
+    driver: bridge
